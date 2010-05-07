@@ -2,7 +2,7 @@
 (require :cl-ppcre)
 
 (defvar *jvn-interval* 20)
-(defvar *cache-file* "/home/toshi/.jvn.cache")
+(defvar *cache-file* ".jvn.cache")
 (defvar *jvn-feed* "http://jvn.jp/rss/jvn.rdf")
 
 (defun get-xml (file)
