@@ -1,5 +1,5 @@
 (require :cxml)
-(require :cl-ppcre)
+(require :local-time)
 
 (defvar *jvn-interval* 20)
 (defvar *cache-file* ".jvn.cache")
@@ -23,23 +23,27 @@
     (dom:node-value (dom:last-child element))))
 
 (defun format-item (item)
-  (let ((data 
-         (map 'list
-              #'(lambda (element) (extract-element-from-item item element))
-              (list "title" "dc:relation" "dc:date" "dc:identifier"))))
-    (format nil "~{~a~%~a~%~a~%~a~%~}" data)))
+  (let ((title (extract-element-from-item item "title"))
+        (relation (extract-element-from-item item "dc:relation"))
+        (date (extract-element-from-item item "dc:date"))
+        (id (extract-element-from-item item "dc:identifier")))
+    (format nil "~{~a~%~a~%~a~%~a~%~}" (list title relation (jvn-format-datetime date) id))))
 
-(defun jvn-parse-time (time)
-  (cl-ppcre:register-groups-bind (year month date hour minute second)
-      ("(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})\\+.*" time)
-    (eval (cons 'encode-universal-time 
-                (map 'list #'parse-integer (list second minute hour date month year ))))))
+(defun jvn-parse-datetime (time)
+   (local-time:parse-timestring time))
+
+(defun jvn-format-datetime (datetime)
+  (local-time:format-timestring
+   nil
+   (jvn-parse-datetime datetime)
+   :format '(:year "/" :month "/" :day " " :hour ":" (:min 2)":" (:sec 2))))
 
 ;;  if the item is old ,return nil
 (defun jvn-new-infop (item)
   (let* ((date-str (extract-element-from-item item "dcterms:issued"))
-         (date (jvn-parse-time date-str)))
-    (>  date (- (get-universal-time) (* *jvn-interval* 24 60 60)))))
+         (date (jvn-parse-datetime date-str)))
+    (>  (local-time:timestamp-to-universal date)
+        (- (get-universal-time) (* *jvn-interval* 24 60 60)))))
 
 (defun main ()
   (get-xml *cache-file*)
@@ -49,3 +53,5 @@
       (format t "~a~%" data))))
 
 (sb-ext:save-lisp-and-die "jvn-bin" :executable t :toplevel 'main )
+
+
